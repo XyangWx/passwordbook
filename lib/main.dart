@@ -30,7 +30,7 @@ class AuthCheckPage extends StatefulWidget {
 }
 
 class _AuthCheckPageState extends State<AuthCheckPage> {
-  bool _isChecking = true;
+  final bool _isChecking = true;
 
   @override
   void initState() {
