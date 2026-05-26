@@ -33,6 +33,8 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   flutter_secure_storage: ^9.2.4
+  oidc: ^4.0.0
+  oidc_default_store: ^1.0.0
 
 dev_dependencies:
   flutter_test:
