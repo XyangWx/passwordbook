@@ -23,6 +23,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // 🌟 核心修正：使用严格符合 Kotlin DSL 规范的 Map 语法注入占位符 🌟
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.mksword.passwordbook"
     }
 
     buildTypes {
