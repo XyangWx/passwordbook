@@ -11,7 +11,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // 使用官方标准推荐的 OidcUserManager 代替底层 client
   OidcUserManager? _oidcUserManager;
   bool _isInitializing = true;
   bool _isLoading = false;
@@ -24,26 +23,20 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _initOidc() async {
     try {
-      // 如果 OidcDefaultStore.create() 报错，说明你本地包的旧版本是直接 new 出来的
-      // 这里的工厂方法如果找不到，可以直接 fallback 到 OidcDefaultStore()
-      late final OidcPlatformStorage store;
-      try {
-        store = await OidcDefaultStore.create();
-      } catch (_) {
-        // 针对部分旧版本兼容
-        store = OidcDefaultStore();
-      }
+      // 1. 在 0.14.x 版本中，直接同步实例化 OidcDefaultStore
+      final OidcStore secureStore = OidcDefaultStore();
 
-      // 使用 OidcProviderMetadata 代替发现文档配置
-      final metadata = await OidcProviderMetadata.discover(
+      // 2. 0.14.x 使用 OidcProviderMetadata.get 方法异步拉取发现文档
+      final metadata = await OidcProviderMetadata.get(
         Uri.parse('${EnvConfig.authServer}/.well-known/openid-configuration'),
       );
 
       if (mounted) {
         setState(() {
+          // 3. 严格契合 0.14.x 的命名参数：接收 metadata 字段
           _oidcUserManager = OidcUserManager.lazy(
-            discoveryDocument: metadata,
-            store: store,
+            metadata: metadata,
+            store: secureStore,
           );
           _isInitializing = false;
         });
@@ -64,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      // 移动端/桌面端统一推荐使用最稳妥的本地浏览器授权弹窗
+      // 4. 执行标准 Code 授权流
       final result = await _oidcUserManager!.loginAuthorizationCodeFlow(
         originalUri: Uri.parse('com.mksword.passwordbook:/callback'),
       );
@@ -73,7 +66,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (result == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('登录已被用户取消')),
+          const SnackBar(content: Text('登录已被取消')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
