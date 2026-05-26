@@ -18,15 +18,18 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final provider = OidcProvider(
-        Uri.parse(EnvConfig.authServer),
-        clientId: EnvConfig.applicationId,
+      // oidc v0.14.x API
+      final client = OidcClient(
+        OidcClientSettings(
+          discoveryUri: Uri.parse(
+              '${EnvConfig.authServer}/.well-known/openid-configuration'),
+          clientId: EnvConfig.applicationId,
+          redirectUri: Uri.parse('com.mksword.passwordbook:/callback'),
+        ),
         store: OidcDefaultStore(),
       );
 
-      final discovery = await provider.discover();
-      final result = await provider.authorizeWithRedirect(
-        discovery,
+      final result = await client.authorizeWithRedirect(
         redirectUri: Uri.parse('com.mksword.passwordbook:/callback'),
       );
 
