@@ -11,7 +11,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // 1. 符合官方规范：声明顶级 OidcUserManager 会话管理器
   OidcUserManager? _oidcUserManager;
   bool _isInitializing = true;
   bool _isLoading = false;
@@ -24,22 +23,25 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _initOidc() async {
     try {
-      // 2. 初始化官方配套本地加密持久化存储
       final store = OidcDefaultStore();
-
-      // 3. 遵照官方配置：公共客户端使用 .none 认证模式
       final clientAuth = OidcClientAuthentication.none(
         clientId: EnvConfig.applicationId,
       );
 
-      // 4. 遵照官方配置：通过 settings 控制行为，传入必须的全局重定向路由
+      // 🌟 核心修正 1：严格对齐官方规范，将 ios 和 macos 拆分为两个独立的具名参数进行配置
+      final platformOptions = OidcPlatformSpecificOptions(
+        android: const OidcPlatformSpecificOptions_AppAuth_Android(),
+        ios: const OidcPlatformSpecificOptions_AppAuth_IosMacos(),
+        macos: const OidcPlatformSpecificOptions_AppAuth_IosMacos(),
+      );
+
       final settings = OidcUserManagerSettings(
         redirectUri: Uri.parse('com.mksword.passwordbook:/callback'),
+        options: platformOptions,
       );
 
       if (mounted) {
         setState(() {
-          // 5. 调用官方推荐的 .lazy 构造函数，自动拉取并缓存 Discovery 发现文档
           _oidcUserManager = OidcUserManager.lazy(
             discoveryDocumentUri: Uri.parse(
                 '${EnvConfig.authServer}/.well-known/openid-configuration'),
@@ -49,7 +51,6 @@ class _LoginPageState extends State<LoginPage> {
           );
         });
 
-        // 6. 核心步骤：必须手动触发官方声明的管理器初始化，去处理缓存和路由解析
         await _oidcUserManager!.init();
 
         if (mounted) {
@@ -67,18 +68,21 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
-    // 7. 防抖拦截
     if (_isLoading || _oidcUserManager == null) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 8. 调用官方 Usage 规定的标准授权码流方法
-      await _oidcUserManager!.loginAuthorizationCodeFlow();
+      // 🌟 核心修正 2：严格依照底层函数签名，通过 extraParameters 将 PKCE (S256) 传输字段直接带入
+      await _oidcUserManager!.loginAuthorizationCodeFlow(
+        extraParameters: const {
+          OidcConstants_AuthParameters.codeChallengeMethod:
+          OidcConstants_AuthorizeRequest_CodeChallengeMethod.s256,
+        },
+      );
 
       if (!mounted) return;
 
-      // 9. 登录成功后，可以通过监听 currentUser 流或直接查询状态
       if (_oidcUserManager!.currentUser != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('登录成功')),
