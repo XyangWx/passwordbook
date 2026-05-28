@@ -23,6 +23,12 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // 🟢 升级：同时配置登录回调 Scheme 与 注销回调 Scheme
+        manifestPlaceholders += mapOf(
+            "appAuthRedirectScheme" to "com.mksword.passwordbook",
+            "appAuthPostLogoutRedirectScheme" to "com.mksword.passwordbook"
+        )
     }
 
     buildTypes {
@@ -36,7 +42,7 @@ android {
 
 kotlin {
     compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget("17"))
     }
 }
 
