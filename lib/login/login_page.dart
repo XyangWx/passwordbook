@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:oidc/oidc.dart';
 import 'package:oidc_default_store/oidc_default_store.dart';
 import '../config/env_config.dart';
+import 'package:passwordbook/main.dart'; // 🟢 成功引入 main.dart 以识别 HomePage 类
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -33,15 +34,14 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 🟢 【失败/取消守卫】：当用户从浏览器没有成功登录，直接点击返回键或关闭按钮回到 App 时触发
+    // 🟢 【取消/失败守卫】：当用户在浏览器内未登录，直接按返回键切换回 App 时触发
     if (state == AppLifecycleState.resumed && _isLoading) {
-      // 给底层留出 500 毫秒判定缓冲时间
-      Future.delayed(const Duration(milliseconds: 500), () {
+      // 延迟给底层的本地异步写磁盘动作留出缓冲
+      Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted && _oidcUserManager?.currentUser == null) {
-          // 彻底判定为失败/取消：关闭加载动画，将用户安全地留在当前登录界面
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('登录已取消或失败，请重试')),
+            const SnackBar(content: Text('登录已取消，请重新尝试')),
           );
         }
       });
@@ -69,8 +69,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
       if (mounted) {
         final manager = OidcUserManager.lazy(
-          discoveryDocumentUri: Uri.parse(
-              '${EnvConfig.authServer}/.well-known/openid-configuration'),
+          discoveryDocumentUri: Uri.parse('${EnvConfig.authServer}/.well-known/openid-configuration'),
           clientCredentials: clientAuth,
           store: store,
           settings: settings,
@@ -80,31 +79,23 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           _oidcUserManager = manager;
         });
 
-        // 移动端初始化，会自动从本地 store 恢复历史登录状态
+        // 1. 初始化管理器：会尝试从本地默认 Store 中恢复可能存在的历史 Session
         await _oidcUserManager!.init();
 
-        // 🟢 【成功路由守卫流】：全权负责成功拿到 access_token 后的界面跳转逻辑
-        // 当原生拦截器拿到 code 并换取 Token 写入 currentUser 的瞬时，该流会立刻感知，彻底避免卡死
+        // 🟢 【安全阀 1】：启动自检。如果发现本地本来就已经有合法的未过期用户，
+        // 说明根本不需要再登录，直接原地销毁登录页并进入 HomePage
+        if (_oidcUserManager!.currentUser != null) {
+          print('🔑 [OIDC] 启动检测：本地存在有效缓存 Token，执行直接放行');
+          _navigateToMain();
+          return;
+        }
+
+        // 🟢 【安全阀 2】：配置成功重定向流。只有当本地无有效用户、且用户主动点击了登录（_isLoading == true）、
+        // 并且浏览器成功跳回、换取 Access Token 完毕后，这里才会精准开闸放行。
         _userSubscription = _oidcUserManager!.userChanges().listen((user) {
           if (user != null && _isLoading) {
-            print('🎉 [OIDC] 成功捕捉到 Access Token: ${user.token.accessToken}');
-
-            if (mounted) {
-              setState(() => _isLoading = false);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('登录成功，正在跳转...')),
-              );
-
-              // 🟢 【关键跳转闭环】：登录成功时销毁当前登录页，切回主界面
-              // 方式 A：如果 LoginPage 是通过 Navigator.push 出来的，直接 pop 掉它即可安全返回 main 界面
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                // 方式 B：如果 LoginPage 是根路径或特殊情况，将其替换为您项目的实际主页路由（如 '/main' 或 '/home'）
-                Navigator.pushReplacementNamed(context, '/main');
-              }
-            }
+            print('🎉 [OIDC] 浏览器回调成功，捕获到新 Token: ${user.token.accessToken}');
+            _navigateToMain();
           }
         });
 
@@ -122,20 +113,34 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
+  // 🟢 统一的路由出口：彻底销毁当前登录栈，进入主界面 HomePage
+  void _navigateToMain() {
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    // 销毁当前的登录页，并强行把主界面 HomePage 压入栈底作为全新的根路由，防止用户按返回键退回登录页
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HomePage(), // 🟢 完美契合您 main.dart 里的常量构造函数
+      ),
+          (route) => false,
+    );
+  }
+
   Future<void> _login() async {
     if (_isLoading || _oidcUserManager == null) return;
 
     setState(() => _isLoading = true);
 
     try {
-      print('🚀 [OIDC] 正在生成安全参数并拉起浏览器授权...');
+      print('🚀 [OIDC] 正在生成安全参数并拉起授权窗...');
 
-      // 触发授权码流。此处必须 await 确保前置随机数准备完毕并拉起原生窗口。
-      // 成功返回的跳转动作，统一交由上方的 userChanges 监听流进行响应。
+      // 触发完整的授权码模式，拉起 Chrome Custom Tabs
       await _oidcUserManager!.loginAuthorizationCodeFlow();
 
     } catch (e) {
-      print('❌ [OIDC] 拉起授权异常: $e');
+      print('❌ [OIDC] 拉起授权界面发生异常: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -150,9 +155,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     final bool isBtnDisabled = _isInitializing || _isLoading || _oidcUserManager == null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('登录'),
-      ),
+      appBar: AppBar(title: const Text('登录')),
       body: Center(
         child: _isInitializing
             ? const CircularProgressIndicator()
