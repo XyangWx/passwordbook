@@ -301,13 +301,15 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: 新建密码本
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('新建密码本'),
-      ),
+      persistentFooterButtons: [
+        FloatingActionButton.extended(
+          onPressed: () {
+            // TODO: 新建密码本
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('新建密码本'),
+        ),
+      ],
     );
   }
 }
