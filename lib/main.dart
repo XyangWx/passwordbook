@@ -302,12 +302,20 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       persistentFooterButtons: [
-        FloatingActionButton.extended(
-          onPressed: () {
-            // TODO: 新建密码本
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('新建密码本'),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            ),
+            onPressed: () {
+              // TODO: 新建密码本
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('新建密码本', style: TextStyle(fontSize: 16)),
+          ),
         ),
       ],
     );
