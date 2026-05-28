@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:oidc/oidc.dart';
 import 'package:oidc_default_store/oidc_default_store.dart';
 import '../config/env_config.dart';
-import 'package:passwordbook/main.dart'; // 🟢 成功引入 main.dart 以识别 HomePage 类
+import 'package:passwordbook/main.dart'; // 引入 main.dart 以识别 HomePage 类
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,7 +12,8 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
+// 🟢 移除了 WidgetsBindingObserver，不再需要监听不稳定的生命周期时间差
+class _LoginPageState extends State<LoginPage> {
   OidcUserManager? _oidcUserManager;
   StreamSubscription? _userSubscription; // 状态流订阅器
   bool _isInitializing = true;
@@ -21,31 +22,13 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // 注册生命周期监听
     _initOidc();
   }
 
   @override
   void dispose() {
     _userSubscription?.cancel(); // 释放流订阅，防止内存泄漏
-    WidgetsBinding.instance.removeObserver(this); // 移除生命周期监听
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 🟢 【取消/失败守卫】：当用户在浏览器内未登录，直接按返回键切换回 App 时触发
-    if (state == AppLifecycleState.resumed && _isLoading) {
-      // 延迟给底层的本地异步写磁盘动作留出缓冲
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted && _oidcUserManager?.currentUser == null) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('登录已取消，请重新尝试')),
-          );
-        }
-      });
-    }
   }
 
   Future<void> _initOidc() async {
@@ -62,7 +45,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       );
 
       final settings = OidcUserManagerSettings(
-        // 🛠️ 严格的双斜杠格式，必须与 Android 端配置百分之百匹配
         redirectUri: Uri.parse('com.mksword.passwordbook://callback'),
         options: platformOptions,
       );
@@ -79,19 +61,18 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           _oidcUserManager = manager;
         });
 
-        // 1. 初始化管理器：会尝试从本地默认 Store 中恢复可能存在的历史 Session
+        // 1. 初始化管理器
         await _oidcUserManager!.init();
 
-        // 🟢 【安全阀 1】：启动自检。如果发现本地本来就已经有合法的未过期用户，
-        // 说明根本不需要再登录，直接原地销毁登录页并进入 HomePage
+        // 🟢 【启动自检阀】：如果本地本来就已经有有效用户，直接放行
         if (_oidcUserManager!.currentUser != null) {
           print('🔑 [OIDC] 启动检测：本地存在有效缓存 Token，执行直接放行');
           _navigateToMain();
           return;
         }
 
-        // 🟢 【安全阀 2】：配置成功重定向流。只有当本地无有效用户、且用户主动点击了登录（_isLoading == true）、
-        // 并且浏览器成功跳回、换取 Access Token 完毕后，这里才会精准开闸放行。
+        // 🟢 【监听流】：一旦浏览器跳回，无论网络花费 200 毫秒还是 2 秒钟，
+        // 只要 Token 换取成功的瞬间，立刻精准执行跳转，绝不抢跑
         _userSubscription = _oidcUserManager!.userChanges().listen((user) {
           if (user != null && _isLoading) {
             print('🎉 [OIDC] 浏览器回调成功，捕获到新 Token: ${user.token.accessToken}');
@@ -113,16 +94,15 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  // 🟢 统一的路由出口：彻底销毁当前登录栈，进入主界面 HomePage
+  // 🟢 统一的路由出口
   void _navigateToMain() {
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    // 销毁当前的登录页，并强行把主界面 HomePage 压入栈底作为全新的根路由，防止用户按返回键退回登录页
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (context) => const HomePage(), // 🟢 完美契合您 main.dart 里的常量构造函数
+        builder: (context) => const HomePage(),
       ),
           (route) => false,
     );
@@ -134,17 +114,20 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     setState(() => _isLoading = true);
 
     try {
-      print('🚀 [OIDC] 正在生成安全参数并拉起授权窗...');
+      print('🚀 [OIDC] 正在拉起授权窗...');
 
-      // 触发完整的授权码模式，拉起 Chrome Custom Tabs
+      // 🟢 【核心逻辑收拢】：在 Flutter 3.45.0 下，当用户成功登录并回跳时，
+      // 如果网速慢，这一行会保持 await 等待，直到 Token 彻底置换完才会走完。
+      // 如果用户中途点了取消或返回，底层会立刻抛出异常并进入下面的 catch 块！
       await _oidcUserManager!.loginAuthorizationCodeFlow();
 
     } catch (e) {
-      print('❌ [OIDC] 拉起授权界面发生异常: $e');
+      // 🟢 如果用户在浏览器里点了“取消”或直接返回，异常会百分之百在这里被抓到
+      print('❌ [OIDC] 登录中途取消或异常: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('拉起登录异常: $e')),
+          const SnackBar(content: Text('登录已取消，请重新尝试')),
         );
       }
     }
