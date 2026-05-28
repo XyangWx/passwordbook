@@ -212,3 +212,6 @@ class NewPasswordBookRequest {
     return 'NewPasswordBookRequest(name: $name, description: $description, allowedType: ${allowedType.label})';
   }
 }
+
+typedef ViewPasswordBookResponse = PasswordBook;
+

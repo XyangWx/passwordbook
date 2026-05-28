@@ -82,4 +82,9 @@ class PasswordBookApiClient {
       throw Exception('网络请求发生异常: ${e.message}');
     }
   }
+
+  static Future<ViewPasswordBookResponse> viewPasswordBook(String id) async {
+    final response = await _dio.get('/api/password-book/$id');
+    return ViewPasswordBookResponse.fromJson(response.data);
+  }
 }
