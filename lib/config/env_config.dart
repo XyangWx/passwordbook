@@ -12,4 +12,10 @@ class EnvConfig {
     'APPLICATION_ID',
     defaultValue: 'password_book_app',
   );
+
+  /// API服务器地址
+  static const String apiUri = String.fromEnvironment(
+    'API_URI',
+    defaultValue: 'https://api-test.mksword.com',
+  );
 }
