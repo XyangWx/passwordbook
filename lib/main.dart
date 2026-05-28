@@ -273,28 +273,34 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       // 🟢 移除了底部的 persistentFooterButtons，使页面内容展示区恢复通透
-      body: _isLoadingPasswordBooks
-          ? const Center(child: CircularProgressIndicator())
-          : _passwordBooks.isEmpty
-              ? const Center(child: Text('暂无密码本'))
-              : ListView.builder(
-                  itemCount: _passwordBooks.length,
-                  itemBuilder: (context, index) {
-                    final book = _passwordBooks[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text(book.name),
-                        subtitle: Text(book.description ?? ''),
-                        trailing: Text(
-                          book.allowedType == 1 ? 'General' : 'NumericOnly',
-                        ),
-                        onTap: () {
-                          // TODO: 查看密码本详情
+      body: Column(
+        children: [
+          Expanded(
+            child: _isLoadingPasswordBooks
+                ? const Center(child: CircularProgressIndicator())
+                : _passwordBooks.isEmpty
+                    ? const Center(child: Text('暂无密码本'))
+                    : ListView.builder(
+                        itemCount: _passwordBooks.length,
+                        itemBuilder: (context, index) {
+                          final book = _passwordBooks[index];
+                          return Card(
+                            child: ListTile(
+                              title: Text(book.name),
+                              subtitle: Text(book.description ?? ''),
+                              trailing: Text(
+                                book.allowedType == 1 ? 'General' : 'NumericOnly',
+                              ),
+                              onTap: () {
+                                // TODO: 查看密码本详情
+                              },
+                            ),
+                          );
                         },
                       ),
-                    );
-                  },
-                ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           // TODO: 新建密码本
