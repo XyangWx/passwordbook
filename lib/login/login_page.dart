@@ -13,7 +13,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   OidcUserManager? _oidcUserManager;
-  StreamSubscription? _userSubscription; // 用于状态流订阅器
+  StreamSubscription? _userSubscription; // 状态流订阅器
   bool _isInitializing = true;
   bool _isLoading = false;
 
@@ -26,17 +26,19 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    _userSubscription?.cancel(); // 释放流，防止内存泄漏
+    _userSubscription?.cancel(); // 释放流
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 如果回到前台后过了半秒，currentUser 依然是空，说明用户在浏览器点了取消或者没登录直接回来了
+    // 🟢 当从浏览器完成授权跳回 App 前台时
     if (state == AppLifecycleState.resumed && _isLoading) {
-      Future.delayed(const Duration(milliseconds: 500), () {
+      // 延迟给底层置换 Token 留出时间
+      Future.delayed(const Duration(milliseconds: 800), () {
         if (mounted && _oidcUserManager?.currentUser == null) {
+          // 如果回来后依然没有用户上线，说明用户在浏览器按了返回键取消了登录
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('登录已取消')),
@@ -60,7 +62,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       );
 
       final settings = OidcUserManagerSettings(
-        // 严格的双斜杠格式，匹配 Android 拦截器
         redirectUri: Uri.parse('com.mksword.passwordbook://callback'),
         options: platformOptions,
       );
@@ -80,17 +81,17 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
         await _oidcUserManager!.init();
 
-        // 🟢 核心修正：使用官方标准的 userChanges() 流监听
-        // 当原生拦截器拿到凭证、写入 currentUser 的那一瞬间，这个流会立刻感知，彻底解开前端卡死
+        // 🟢 【核心守卫流】：全权负责成功跳回后的生命周期闭环
+        // 浏览器授权成功重定向回来时，只要凭证一写入，这里会立刻捕捉并执行跳转，绝不卡死
         _userSubscription = _oidcUserManager!.userChanges().listen((user) {
           if (user != null && _isLoading) {
-            print('🎉 [OIDC 状态流成功捕捉] 用户已成功上线: ${user.uid}');
+            print('🎉 [OIDC] 成功捕获到用户登录凭证！UID: ${user.uid}');
             if (mounted) {
               setState(() => _isLoading = false);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('登录成功')),
               );
-              // TODO: 在这里直接进行页面跳转闭环
+              // TODO: 在这里执行主页跳转
               // Navigator.pushReplacementNamed(context, '/home');
             }
           }
@@ -116,12 +117,17 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     setState(() => _isLoading = true);
 
     try {
-      // 🟢 核心策略：触发此方法拉起浏览器，不需要 await 它的返回结果。
-      // 因为在 Flutter 3.45.0 原生生命周期切换时，部分设备上单行的 Future 会丢失，
-      // 我们依靠上面 initState 里的 userChanges() 广播流来安全地处理成功回调。
-      _oidcUserManager!.loginAuthorizationCodeFlow();
+      print('🚀 [OIDC] 开始准备授权码模式前置安全参数...');
+
+      // 🟢 【核心找回】：必须使用 await 恢复完整的授权登录调用链！
+      // 这样插件才能正常生成 state, code_challenge，并有条不紊地拉起内置的 Chrome 授权页面。
+      await _oidcUserManager!.loginAuthorizationCodeFlow();
+
+      print('📱 [OIDC] 浏览器已成功唤起。正在等待用户在网页完成认证...');
 
     } catch (e) {
+      // 捕获可能在拉起浏览器那一瞬间发生的异常
+      print('❌ [OIDC] 拉起授权页面失败: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
