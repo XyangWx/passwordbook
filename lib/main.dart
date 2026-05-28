@@ -113,6 +113,7 @@ class _HomePageState extends State<HomePage> {
         redirectUri: Uri.parse('com.mksword.passwordbook://callback'),
         postLogoutRedirectUri: Uri.parse('com.mksword.passwordbook://logout-callback'),
         options: platformOptions,
+        scope: ['openid', 'profile', 'email', 'XYPortal']
       );
 
       final manager = OidcUserManager.lazy(
