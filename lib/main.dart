@@ -192,9 +192,107 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// 🟢 点击新建密码本按钮的点击事件
+  // 🟢 替换原有的 _createNewPasswordBook() 空方法
   void _createNewPasswordBook() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('触发新建密码本功能')),
+    final formKey = GlobalKey<FormState>();
+    String name = '';
+    String description = '';
+    AllowedType selectedType = AllowedType.general;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('新建密码本'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: '密码本名称 *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? '名称不能为空' : null,
+                        onSaved: (v) => name = v!.trim(),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: '描述',
+                          border: OutlineInputBorder(),
+                        ),
+                        onSaved: (v) => description = v?.trim() ?? '',
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<AllowedType>(
+                        value: selectedType,
+                        decoration: const InputDecoration(
+                          labelText: '允许生成的密码类型',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: AllowedType.values.map((type) {
+                          return DropdownMenuItem(
+                            value: type,
+                            child: Text(type == AllowedType.numericOnly ? '纯数字' : '通用复杂'),
+                          );
+                        }).toList(),
+                        onChanged: (AllowedType? next) {
+                          if (next != null) {
+                            setDialogState(() => selectedType = next);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      formKey.currentState!.save();
+
+                      setState(() => _isLoadingList = true);
+                      Navigator.pop(dialogContext); // 关闭弹窗
+
+                      try {
+                        final requestBody = NewPasswordBookRequest(
+                          name: name,
+                          description: description,
+                          allowedType: selectedType,
+                        );
+
+                        // 调用 API 发起创建
+                        await PasswordBookApiClient.createPasswordBook(requestBody);
+                        // 原地刷新密码本列表
+                        await _fetchPasswordBooks();
+                      } catch (err) {
+                        if (mounted) {
+                          setState(() => _isLoadingList = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('创建失败: $err')),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  child: const Text('确定'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -240,26 +338,23 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       // 🟢 body：条件渲染异步状态，成功时展现 ListView 密码本列表
+      // 🟢 替换原有的 body: const Center(...) 块
       body: _isLoadingList
           ? const Center(child: CircularProgressIndicator())
           : _listError != null
           ? Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48),
-              const SizedBox(height: 12),
-              Text(_listError!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _fetchPasswordBooks,
-                icon: const Icon(Icons.refresh),
-                label: const Text('重试'),
-              )
-            ],
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 12),
+            Text(_listError!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchPasswordBooks,
+              child: const Text('重试'),
+            )
+          ],
         ),
       )
           : _passwordBooks.isEmpty
@@ -275,11 +370,11 @@ class _HomePageState extends State<HomePage> {
               margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
               child: ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.lock_outline)),
-                title: Text(book.name ?? '未命名密码本'),
+                title: Text(book.name),
                 subtitle: Text(book.description ?? '暂无描述'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  // TODO: 点击跳转到密码本详情
+                  // TODO: 点击进入该密码本详情
                 },
               ),
             );
@@ -287,6 +382,7 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       // 🟢 底部常驻按钮：新建密码本按钮
+      // 🟢 挂载在 Scaffold 括号内部，与 appBar、body 平级
       persistentFooterButtons: [
         SizedBox(
           width: double.infinity,

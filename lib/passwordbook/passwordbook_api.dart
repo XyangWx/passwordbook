@@ -65,15 +65,21 @@ class PasswordBookApiClient {
     }
   }
 
-  /// POST /api/password-book 创建新密码本
+  /// 🟢 POST /api/password-book 创建新密码本
   static Future<void> createPasswordBook(NewPasswordBookRequest request) async {
-    final response = await _dio.post(
-      '/api/password-book',
-      data: request.toJson(), // 🟢 拦截器会自动附加 token 并完成 JSON 序列化提交
-    );
+    try {
+      // 拦截器在底层会自动静默注入 Token 和 ABP 跨域头上下文
+      final response = await _dio.post(
+        '/api/password-book',
+        data: request.toJson(),
+      );
 
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('创建密码本失败，状态码: ${response.statusCode}');
+      // ABP 框架标准规范：创建成功通常返回 200 或 201 状态码
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('创建密码本失败，服务器状态码: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('网络请求发生异常: ${e.message}');
     }
   }
 }
