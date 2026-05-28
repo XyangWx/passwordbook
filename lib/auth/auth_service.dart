@@ -2,10 +2,14 @@ import 'package:oidc/oidc.dart';
 import 'package:oidc_default_store/oidc_default_store.dart';
 import '../config/env_config.dart';
 
-/// 🟢 重构并修正语法后的认证状态管理：直接桥接 OIDC 核心状态
+/// 认证状态与配置核心管理中心（全局单一事实来源）
 class AuthService {
-  /// 封装一个内部公用的管理器初始化方法，确保能拿到最新的真实会话
-  static Future<OidcUserManager> _getOidcManager() async {
+  static OidcUserManager? _userManager;
+
+  /// 🟢 核心抽象：全局唯一的配置与初始化出口，只在这里定义一次！
+  static Future<OidcUserManager> getManager() async {
+    if (_userManager != null) return _userManager!;
+
     final store = OidcDefaultStore();
     final clientAuth = OidcClientAuthentication.none(clientId: EnvConfig.applicationId);
 
@@ -15,52 +19,48 @@ class AuthService {
       macos: const OidcPlatformSpecificOptions_AppAuth_IosMacos(),
     );
 
+    // 🌟 全应用所有的 OIDC 核心配置，未来只需要修改这一个地方：
     final settings = OidcUserManagerSettings(
       redirectUri: Uri.parse('com.mksword.passwordbook://callback'),
       postLogoutRedirectUri: Uri.parse('com.mksword.passwordbook://logout-callback'),
       options: platformOptions,
-      scope: ['openid', 'profile', 'email', 'XYPortal']
+      scope: const ['openid', 'profile', 'email', 'XYPortal'], // 完美对齐复数 scopes
     );
 
-    final manager = OidcUserManager.lazy(
+    _userManager = OidcUserManager.lazy(
       discoveryDocumentUri: Uri.parse('${EnvConfig.authServer}/.well-known/openid-configuration'),
       clientCredentials: clientAuth,
       store: store,
       settings: settings,
     );
 
-    await manager.init();
-    return manager;
+    await _userManager!.init();
+    return _userManager!;
   }
 
-  /// 🟢 检查是否已登录：直接交由 OIDC 判定
+  /// 检查是否已登录
   static Future<bool> isLoggedIn() async {
     try {
-      final manager = await _getOidcManager();
-
-      // 🛠️ 核心修正：isAccessTokenExpired 是一个方法，必须加上 () 执行！
-      // 并且只有当存在用户、且 Access Token 未过期时才判定为合法的 isLoggedIn
+      final manager = await getManager();
       final hasUser = manager.currentUser != null;
-      final isExpired = hasUser && manager.currentUser!.token.isAccessTokenExpired(); // 加上圆括号
-
+      final isExpired = hasUser && manager.currentUser!.token.isAccessTokenExpired();
       return hasUser && !isExpired;
     } catch (_) {
       return false;
     }
   }
 
-  /// 🟢 获取当前的 access_token (供你项目内其他网络请求 Dio/Http 拦截器调用)
+  /// 获取当前的 access_token
   static Future<String?> getAccessToken() async {
     try {
-      final manager = await _getOidcManager();
+      final manager = await getManager();
       return manager.currentUser?.token.accessToken;
     } catch (_) {
       return null;
     }
   }
 
-  /// 💡 保留空实现以兼容你项目其余部分的编译：
-  /// 因为 package:oidc 的 loginFlow 会自动持久化，不再需要手动干预 save 和 clear
+  /// 兼容性占位
   static Future<void> saveAccessToken(String token) async {}
   static Future<void> clearAccessToken() async {}
 }
