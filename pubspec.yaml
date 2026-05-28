@@ -37,6 +37,7 @@ dependencies:
   oidc_default_store: ^0.6.0+2
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.2
+  dio: ^5.4.0
 
 dev_dependencies:
   flutter_test:

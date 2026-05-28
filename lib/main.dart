@@ -6,6 +6,8 @@ import 'package:oidc_default_store/oidc_default_store.dart';
 import 'auth/auth_service.dart';
 import 'login/login_page.dart';
 import 'config/env_config.dart'; // 引入环境配置
+import 'passwordbook/models.dart';
+import 'passwordbook/passwordbook_api.dart';
 
 void main() {
   runApp(const MyApp());
@@ -79,11 +81,14 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription? _userSubscription; // 用于监听注销时用户下线的流
   String _displayName = '加载中...';
   bool _isLoggingOut = false;
+  List<PasswordBook> _passwordBooks = [];
+  bool _isLoadingPasswordBooks = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
+    _loadPasswordBooks();
   }
 
   @override
@@ -174,6 +179,27 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// 加载密码本列表
+  Future<void> _loadPasswordBooks() async {
+    setState(() => _isLoadingPasswordBooks = true);
+    try {
+      final books = await PasswordBookApiClient.getPasswordBooks();
+      if (mounted) {
+        setState(() => _passwordBooks = books);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('获取密码本失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingPasswordBooks = false);
+      }
+    }
+  }
+
   /// 执行注销（Logout）动作
   Future<void> _handleLogout() async {
     if (_oidcUserManager == null || _isLoggingOut) return;
@@ -247,11 +273,28 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       // 🟢 移除了底部的 persistentFooterButtons，使页面内容展示区恢复通透
-      body: ListView(
-        children: const [
-          // TODO: 密码本列表
-        ],
-      ),
+      body: _isLoadingPasswordBooks
+          ? const Center(child: CircularProgressIndicator())
+          : _passwordBooks.isEmpty
+              ? const Center(child: Text('暂无密码本'))
+              : ListView.builder(
+                  itemCount: _passwordBooks.length,
+                  itemBuilder: (context, index) {
+                    final book = _passwordBooks[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(book.name),
+                        subtitle: Text(book.description ?? ''),
+                        trailing: Text(
+                          book.allowedType == 1 ? 'General' : 'NumericOnly',
+                        ),
+                        onTap: () {
+                          // TODO: 查看密码本详情
+                        },
+                      ),
+                    );
+                  },
+                ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           // TODO: 新建密码本
