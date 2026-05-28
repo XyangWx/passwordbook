@@ -46,6 +46,8 @@ class _LoginPageState extends State<LoginPage> {
 
       final settings = OidcUserManagerSettings(
         redirectUri: Uri.parse('com.mksword.passwordbook://callback'),
+        // 🟢 新增：指定注销成功后，要求浏览器重定向跳回的专属本地 App 网址
+        postLogoutRedirectUri: Uri.parse('com.mksword.passwordbook://logout-callback'),
         options: platformOptions,
       );
 

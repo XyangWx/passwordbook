@@ -24,8 +24,11 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // 🌟 核心修正：使用严格符合 Kotlin DSL 规范的 Map 语法注入占位符 🌟
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.mksword.passwordbook"
+        // 🟢 升级：同时配置登录回调 Scheme 与 注销回调 Scheme
+        manifestPlaceholders += mapOf(
+            "appAuthRedirectScheme" to "com.mksword.passwordbook",
+            "appAuthPostLogoutRedirectScheme" to "com.mksword.passwordbook"
+        )
     }
 
     buildTypes {
