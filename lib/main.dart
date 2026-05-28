@@ -76,7 +76,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   OidcUserManager? _oidcUserManager;
-  StreamSubscription? _userSubscription; // 🟢 新增：用于监听注销时用户下线的流
+  StreamSubscription? _userSubscription; // 用于监听注销时用户下线的流
   String _displayName = '加载中...';
   bool _isLoggingOut = false;
 
@@ -106,7 +106,6 @@ class _HomePageState extends State<HomePage> {
 
       final settings = OidcUserManagerSettings(
         redirectUri: Uri.parse('com.mksword.passwordbook://callback'),
-        // 🟢 修正：在此处补齐注销重定向本地端点（必须登记在 ABP 后台控制台）
         postLogoutRedirectUri: Uri.parse('com.mksword.passwordbook://logout-callback'),
         options: platformOptions,
       );
@@ -124,8 +123,7 @@ class _HomePageState extends State<HomePage> {
 
       await _oidcUserManager!.init();
 
-      // 🟢 【注销路由守卫流】：当 Chrome 浏览器完成 endsession 并成功回调跳回 App 时，
-      // 这里的全局流会立刻发现用户对象变为 null，从而在微秒级瞬间安全地将应用切换回登录页。
+      // 注销路由守卫流：当 Chrome 浏览器完成 endsession 并成功回调跳回 App 时触发
       _userSubscription = _oidcUserManager!.userChanges().listen((user) {
         if (user == null && _isLoggingOut) {
           print('👋 [OIDC] 检测到用户成功下线，执行页面回切闭环...');
@@ -184,12 +182,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       print('🚀 [OIDC] 正在拉起浏览器执行 EndSession 注销...');
-
-      // 🟢 核心策略：触发此方法让浏览器执行远端注销，不需要 await 它的 Future 返回。
-      // 注销成功并触发 com.mksword.passwordbook://logout-callback 回跳时，
-      // 我们依靠上面 initState 里的 userChanges() 广播流来安全完成向 LoginPage 的过渡。
       _oidcUserManager!.logout();
-
     } catch (e) {
       print('❌ [OIDC] 注销发生异常: $e');
       if (mounted) {
@@ -204,50 +197,62 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 🟢 Header 修改：通过 PopupMenuButton 自定义 child 实现整体触控按钮
       appBar: AppBar(
         title: const Text('Password Book'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Center(
+          PopupMenuButton<String>(
+            enabled: !_isLoggingOut, // 正在注销过程中禁用菜单
+            offset: const Offset(0, 50), // 🟢 设置垂直偏移量，确保菜单恰好贴在 AppBar 下方弹出
+            onSelected: (value) {
+              if (value == 'logout') {
+                _handleLogout();
+              }
+            },
+            // 自定义触发器：将头像、名字、下拉小箭头打包装进一个 Material 质感的 InkWell 区域
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.account_circle, size: 20),
+                  const Icon(Icons.account_circle, size: 24),
                   const SizedBox(width: 6),
                   Text(
                     _displayName,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.arrow_drop_down, size: 20), // 增加下拉视觉暗示
                 ],
               ),
             ),
+            // 下拉弹出的菜单项定义
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    const Icon(Icons.logout, size: 18, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isLoggingOut ? '正在注销...' : '注销登录',
+                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
+      // 🟢 移除了底部的 persistentFooterButtons，使页面内容展示区恢复通透
       body: const Center(
         child: Text(
           '欢迎来到密码本主页',
           style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
       ),
-      persistentFooterButtons: [
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: TextButton.icon(
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-            ),
-            onPressed: _isLoggingOut ? null : _handleLogout,
-            icon: _isLoggingOut
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
-                : const Icon(Icons.logout),
-            label: Text(_isLoggingOut ? '正在注销...' : '注销登录', style: const TextStyle(fontSize: 16)),
-          ),
-        ),
-      ],
     );
   }
 }
