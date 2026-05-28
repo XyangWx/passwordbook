@@ -7,6 +7,7 @@ import 'login/login_page.dart';
 // 🟢 完美对齐您的真实文件路径
 import 'passwordbook/passwordbook_api.dart';
 import 'passwordbook/models.dart';
+import 'passwordbook/create_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -191,109 +192,25 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// 🟢 点击新建密码本按钮的点击事件
-  // 🟢 替换原有的 _createNewPasswordBook() 空方法
-  void _createNewPasswordBook() {
-    final formKey = GlobalKey<FormState>();
-    String name = '';
-    String description = '';
-    AllowedType selectedType = AllowedType.general;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('新建密码本'),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: '密码本名称 *',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? '名称不能为空' : null,
-                        onSaved: (v) => name = v!.trim(),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: '描述',
-                          border: OutlineInputBorder(),
-                        ),
-                        onSaved: (v) => description = v?.trim() ?? '',
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<AllowedType>(
-                        value: selectedType,
-                        decoration: const InputDecoration(
-                          labelText: '允许生成的密码类型',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: AllowedType.values.map((type) {
-                          return DropdownMenuItem(
-                            value: type,
-                            child: Text(type == AllowedType.numericOnly ? '纯数字' : '通用复杂'),
-                          );
-                        }).toList(),
-                        onChanged: (AllowedType? next) {
-                          if (next != null) {
-                            setDialogState(() => selectedType = next);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('取消'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      formKey.currentState!.save();
-
-                      setState(() => _isLoadingList = true);
-                      Navigator.pop(dialogContext); // 关闭弹窗
-
-                      try {
-                        final requestBody = NewPasswordBookRequest(
-                          name: name,
-                          description: description,
-                          allowedType: selectedType,
-                        );
-
-                        // 调用 API 发起创建
-                        await PasswordBookApiClient.createPasswordBook(requestBody);
-                        // 原地刷新密码本列表
-                        await _fetchPasswordBooks();
-                      } catch (err) {
-                        if (mounted) {
-                          setState(() => _isLoadingList = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('创建失败: $err')),
-                          );
-                        }
-                      }
-                    }
-                  },
-                  child: const Text('确定'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+  // 🟢 完美对齐：点击底部按钮时，直接拉起全新独立的新建大表单页面
+  void _createNewPasswordBook() async {
+    // 1. 动态跳转到我们刚刚编写的、包含所有完整策略字段的独立大页面
+    final bool? isNeedRefresh = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CreatePasswordBookPage(), // 👈 记得在 main.dart 顶部 import 'passwordbook/create_page.dart';
+      ),
     );
+
+    // 2. 🟢 联动闭环：如果从创建页成功提交并返回（传回了 true），主页立刻自动重新抓取接口刷新 ListView！
+    if (isNeedRefresh == true) {
+      await _fetchPasswordBooks();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('🎉 密码本创建成功，列表已同步刷新！')),
+        );
+      }
+    }
   }
 
   @override
