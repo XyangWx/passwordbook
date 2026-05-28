@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:oidc/oidc.dart';
 import 'package:oidc_default_store/oidc_default_store.dart';
@@ -10,15 +11,39 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   OidcUserManager? _oidcUserManager;
+  StreamSubscription? _userSubscription; // 用于状态流订阅器
   bool _isInitializing = true;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initOidc();
+  }
+
+  @override
+  void dispose() {
+    _userSubscription?.cancel(); // 释放流，防止内存泄漏
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 如果回到前台后过了半秒，currentUser 依然是空，说明用户在浏览器点了取消或者没登录直接回来了
+    if (state == AppLifecycleState.resumed && _isLoading) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && _oidcUserManager?.currentUser == null) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('登录已取消')),
+          );
+        }
+      });
+    }
   }
 
   Future<void> _initOidc() async {
@@ -28,7 +53,6 @@ class _LoginPageState extends State<LoginPage> {
         clientId: EnvConfig.applicationId,
       );
 
-      // 🌟 核心修正 1：严格对齐官方规范，将 ios 和 macos 拆分为两个独立的具名参数进行配置
       final platformOptions = OidcPlatformSpecificOptions(
         android: const OidcPlatformSpecificOptions_AppAuth_Android(),
         ios: const OidcPlatformSpecificOptions_AppAuth_IosMacos(),
@@ -36,22 +60,41 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       final settings = OidcUserManagerSettings(
-        redirectUri: Uri.parse('com.mksword.passwordbook:/callback'),
+        // 严格的双斜杠格式，匹配 Android 拦截器
+        redirectUri: Uri.parse('com.mksword.passwordbook://callback'),
         options: platformOptions,
       );
 
       if (mounted) {
+        final manager = OidcUserManager.lazy(
+          discoveryDocumentUri: Uri.parse(
+              '${EnvConfig.authServer}/.well-known/openid-configuration'),
+          clientCredentials: clientAuth,
+          store: store,
+          settings: settings,
+        );
+
         setState(() {
-          _oidcUserManager = OidcUserManager.lazy(
-            discoveryDocumentUri: Uri.parse(
-                '${EnvConfig.authServer}/.well-known/openid-configuration'),
-            clientCredentials: clientAuth,
-            store: store,
-            settings: settings,
-          );
+          _oidcUserManager = manager;
         });
 
         await _oidcUserManager!.init();
+
+        // 🟢 核心修正：使用官方标准的 userChanges() 流监听
+        // 当原生拦截器拿到凭证、写入 currentUser 的那一瞬间，这个流会立刻感知，彻底解开前端卡死
+        _userSubscription = _oidcUserManager!.userChanges().listen((user) {
+          if (user != null && _isLoading) {
+            print('🎉 [OIDC 状态流成功捕捉] 用户已成功上线: ${user.uid}');
+            if (mounted) {
+              setState(() => _isLoading = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('登录成功')),
+              );
+              // TODO: 在这里直接进行页面跳转闭环
+              // Navigator.pushReplacementNamed(context, '/home');
+            }
+          }
+        });
 
         if (mounted) {
           setState(() => _isInitializing = false);
@@ -73,34 +116,17 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      // 🌟 核心修正 2：严格依照底层函数签名，通过 extraParameters 将 PKCE (S256) 传输字段直接带入
-      await _oidcUserManager!.loginAuthorizationCodeFlow(
-        extraParameters: const {
-          OidcConstants_AuthParameters.codeChallengeMethod:
-          OidcConstants_AuthorizeRequest_CodeChallengeMethod.s256,
-        },
-      );
+      // 🟢 核心策略：触发此方法拉起浏览器，不需要 await 它的返回结果。
+      // 因为在 Flutter 3.45.0 原生生命周期切换时，部分设备上单行的 Future 会丢失，
+      // 我们依靠上面 initState 里的 userChanges() 广播流来安全地处理成功回调。
+      _oidcUserManager!.loginAuthorizationCodeFlow();
 
-      if (!mounted) return;
-
-      if (_oidcUserManager!.currentUser != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('登录成功')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('未获取到登录凭证')),
-        );
-      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('登录异常: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
         setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('拉起登录异常: $e')),
+        );
       }
     }
   }
