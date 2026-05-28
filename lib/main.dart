@@ -247,11 +247,17 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       // 🟢 移除了底部的 persistentFooterButtons，使页面内容展示区恢复通透
-      body: const Center(
-        child: Text(
-          '欢迎来到密码本主页',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
+      body: ListView(
+        children: const [
+          // TODO: 密码本列表
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          // TODO: 新建密码本
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('新建密码本'),
       ),
     );
   }
