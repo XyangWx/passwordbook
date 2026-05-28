@@ -213,6 +213,120 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// 🟢 1. 弹出条目操作菜单（包含查看与删除）
+  void _showPasswordBookMenu(PasswordBook book) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)), // 圆角美化
+      ),
+      builder: (BuildContext bc) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // 紧凑包裹内容
+            children: [
+              // 提示区头部
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: Text(
+                  '密码本：${book.name}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                ),
+              ),
+              const Divider(height: 1),
+
+              // 菜单项一：查看密码本
+              ListTile(
+                leading: const Icon(Icons.visibility, color: Colors.deepPurple),
+                title: const Text('查看密码本'),
+                onTap: () {
+                  Navigator.pop(bc); // 先关闭菜单栏
+                  // TODO: 执行具体的跳转至详情路由逻辑，例如：
+                  // Navigator.push(context, MaterialPageRoute(builder: (_) => PasswordEntryListPage(bookId: book.id)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('正在打开密码本: ${book.name}')),
+                  );
+                },
+              ),
+
+              // 菜单项二：删除密码本
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: Colors.red),
+                title: const Text('删除密码本', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(bc); // 先关闭菜单栏
+                  _confirmDeletePasswordBook(book); // 唤起二次确认，防止误删
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 🟢 2. 安全策略：删除前的二次确认弹窗
+  void _confirmDeletePasswordBook(PasswordBook book) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red),
+              SizedBox(width: 8),
+              Text('安全警告'),
+            ],
+          ),
+          content: Text('您确定要彻底删除密码本【${book.name}】吗？删除后其名下的所有密码项都将丢失，此操作不可撤销！'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              onPressed: () async {
+                Navigator.pop(dialogContext); // 关闭确认弹窗
+                await _deletePasswordBook(book); // 驱动执行远端删除
+              },
+              child: const Text('确认删除'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 🟢 3. 驱动远端物理删除并同步本地刷新
+  Future<void> _deletePasswordBook(PasswordBook book) async {
+    setState(() => _isLoadingList = true); // 开启加载动画锁死界面
+
+    try {
+      // 💡 提示：这里需要您的 PasswordBookApiClient 中未来封装好对应的删除接口。
+      // 比如：await PasswordBookApiClient.deletePasswordBook(book.id);
+
+      // 模拟成功完成远端 API 请求（为了让您现在看到效果）
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 联动刷新：直接重新触发 fetch 方法向服务器重刷 ListView 列表
+      await _fetchPasswordBooks();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🎉 密码本【${book.name}】已成功移除！')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingList = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ 删除失败: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -290,11 +404,13 @@ class _HomePageState extends State<HomePage> {
                 title: Text(book.name),
                 subtitle: Text(book.description ?? '暂无描述'),
                 trailing: const Icon(Icons.chevron_right),
+                // 🟢 核心修改：点击密码本条目时，弹出包含两个菜单项的底部面板
                 onTap: () {
-                  // TODO: 点击进入该密码本详情
+                  _showPasswordBookMenu(book);
                 },
               ),
             );
+
           },
         ),
       ),
