@@ -64,4 +64,16 @@ class PasswordBookApiClient {
       throw Exception('网络请求发生异常: ${e.message}');
     }
   }
+
+  /// POST /api/password-book 创建新密码本
+  static Future<void> createPasswordBook(NewPasswordBookRequest request) async {
+    final response = await _dio.post(
+      '/api/password-book',
+      data: request.toJson(), // 🟢 拦截器会自动附加 token 并完成 JSON 序列化提交
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('创建密码本失败，状态码: ${response.statusCode}');
+    }
+  }
 }

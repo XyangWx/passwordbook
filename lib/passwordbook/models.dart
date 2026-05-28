@@ -164,3 +164,51 @@ enum WeakLevel {
   final int value;
   final String label;
 }
+
+/// 🟢 新建密码本请求实体模型
+class NewPasswordBookRequest {
+  final String name;
+  final String? description;
+  final int minLength;
+  final int maxLength;
+  final bool requireUppercase;
+  final bool requireLowercase;
+  final bool requireDigit;
+  final bool requireSpecialChar;
+  final String specialChars;
+  final AllowedType allowedType; // 🟢 采用您已有的 AllowedType 枚举增强强类型保障
+
+  NewPasswordBookRequest({
+    required this.name,
+    this.description,
+    this.minLength = 8,           // 对齐您 PasswordBook.fromJson 中的默认最小长度
+    this.maxLength = 20,          // 对齐您 PasswordBook.fromJson 中的默认最大长度
+    this.requireUppercase = true,
+    this.requireLowercase = true,
+    this.requireDigit = true,
+    this.requireSpecialChar = true,
+    this.specialChars = '',
+    this.allowedType = AllowedType.general, // 默认使用通用类型
+  });
+
+  /// 🟢 将对象转为标准的 Map 字典，供已注入拦截器的 Dio 客户端发起 POST 请求
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'description': description,
+      'minLength': minLength,
+      'maxLength': maxLength,
+      'requireUppercase': requireUppercase,
+      'requireLowercase': requireLowercase,
+      'requireDigit': requireDigit,
+      'requireSpecialChar': requireSpecialChar,
+      'specialChars': specialChars,
+      'allowedType': allowedType.value, // 🟢 自动将枚举映射为其绑定的底层 int 值 (0 或 1)
+    };
+  }
+
+  @override
+  String toString() {
+    return 'NewPasswordBookRequest(name: $name, description: $description, allowedType: ${allowedType.label})';
+  }
+}
