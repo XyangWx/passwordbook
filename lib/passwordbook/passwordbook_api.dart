@@ -159,10 +159,10 @@ class PasswordBookApiClient {
     }
   }
 
-  /// 🟢 POST /api/password-book/{passwordBookId}/restore/{passwordEntryId} 恢复已删除的密码项
+  /// 🟢 POST /api/password-book/{passwordBookId}/entries/{passwordEntryId}/restore 恢复已删除的密码项
   static Future<void> restorePasswordEntry(String passwordBookId, String passwordEntryId) async {
     try {
-      final response = await _dio.post('/api/password-book/$passwordBookId/restore/$passwordEntryId');
+      final response = await _dio.post('/api/password-book/$passwordBookId/entries/$passwordEntryId/restore');
 
       if (response.statusCode == 401) {
         throw Exception('认证已过期，请重新登录 (401)');
