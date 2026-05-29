@@ -158,9 +158,11 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (entry.isDeleted) ...[
-                        Row(
-                          children: [
+                      // 🟢 操作按钮统一靠右
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (entry.isDeleted) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
@@ -204,44 +206,43 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (!entry.isDeleted) ...[
-                        TextButton(
-                          onPressed: _isLoading ? null : () async {
-                            try {
-                              await PasswordBookApiClient.deletePasswordEntry(widget.bookId, entry.id);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('密码项已删除')),
-                                );
-                                _fetchDetail();
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('删除失败: $e')),
-                                );
-                              }
-                            }
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.delete_outline, size: 16, color: Colors.orange),
-                              SizedBox(width: 4),
-                              Text('删除', style: TextStyle(fontSize: 13, color: Colors.orange)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
+                          if (!entry.isDeleted) ...[
+                            TextButton(
+                              onPressed: _isLoading ? null : () async {
+                                try {
+                                  await PasswordBookApiClient.deletePasswordEntry(widget.bookId, entry.id);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('密码项已删除')),
+                                    );
+                                    _fetchDetail();
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('删除失败: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.delete_outline, size: 16, color: Colors.orange),
+                                  SizedBox(width: 4),
+                                  Text('删除', style: TextStyle(fontSize: 13, color: Colors.orange)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                       if (entry.remark != null && entry.remark!.isNotEmpty) ...[
                         Text('备注描述: ${entry.remark}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                         const SizedBox(height: 12),
