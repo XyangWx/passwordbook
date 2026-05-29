@@ -8,6 +8,7 @@ import 'login/login_page.dart';
 import 'passwordbook/passwordbook_api.dart';
 import 'passwordbook/models.dart';
 import 'passwordbook/create_page.dart';
+import 'passwordbook/detail_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -235,16 +236,22 @@ class _HomePageState extends State<HomePage> {
               ),
               const Divider(height: 1),
 
-              // 菜单项一：查看密码本
+              // 🟢 完美对齐：点击查看密码本，直接切入包含全套密码列表的详情页
               ListTile(
                 leading: const Icon(Icons.visibility, color: Colors.deepPurple),
                 title: const Text('查看密码本'),
                 onTap: () {
-                  Navigator.pop(bc); // 先关闭菜单栏
-                  // TODO: 执行具体的跳转至详情路由逻辑，例如：
-                  // Navigator.push(context, MaterialPageRoute(builder: (_) => PasswordEntryListPage(bookId: book.id)));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('正在打开密码本: ${book.name}')),
+                  Navigator.pop(bc); // 关闭底部菜单栏
+
+                  // 顺畅拉起独立的密码列表详情页，传入当前点击的 book 属性
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PasswordBookDetailPage(
+                        bookId: book.id,
+                        bookName: book.name,
+                      ),
+                    ),
                   );
                 },
               ),
@@ -300,16 +307,13 @@ class _HomePageState extends State<HomePage> {
 
   /// 🟢 3. 驱动远端物理删除并同步本地刷新
   Future<void> _deletePasswordBook(PasswordBook book) async {
-    setState(() => _isLoadingList = true); // 开启加载动画锁死界面
+    setState(() => _isLoadingList = true); // 开启全屏加载动画
 
     try {
-      // 💡 提示：这里需要您的 PasswordBookApiClient 中未来封装好对应的删除接口。
-      // 比如：await PasswordBookApiClient.deletePasswordBook(book.id);
+      // 🌟 核心打通：调用刚生成的真实删除 API 接口，Dio 拦截器会自动在底层追加 Token
+      await PasswordBookApiClient.deletePasswordBook(book.id);
 
-      // 模拟成功完成远端 API 请求（为了让您现在看到效果）
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // 联动刷新：直接重新触发 fetch 方法向服务器重刷 ListView 列表
+      // 联动刷新：删除成功后，原地触发 fetch 方法向 ABP 重刷 ListView 列表
       await _fetchPasswordBooks();
 
       if (mounted) {
@@ -319,13 +323,14 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingList = false);
+        setState(() => _isLoadingList = false); // 发生异常时恢复列表显示
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ 删除失败: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

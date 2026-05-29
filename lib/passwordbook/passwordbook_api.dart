@@ -83,8 +83,40 @@ class PasswordBookApiClient {
     }
   }
 
+  /// 🟢 GET /api/password-book/{id} 获取单个密码本及名下密码项详情
   static Future<ViewPasswordBookResponse> viewPasswordBook(String id) async {
-    final response = await _dio.get('/api/password-book/$id');
-    return ViewPasswordBookResponse.fromJson(response.data);
+    try {
+      final response = await _dio.get('/api/password-book/$id');
+
+      if (response.statusCode == 401) {
+        throw Exception('认证已过期，请重新登录 (401)');
+      }
+      if (response.statusCode != 200) {
+        throw Exception('获取详情失败，状态码: ${response.statusCode}');
+      }
+
+      // 完美反序列化我们在上一步通过 typedef 建立的强类型别名对象
+      return ViewPasswordBookResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('网络请求发生异常: ${e.message}');
+    }
   }
+
+  /// 🟢 DELETE /api/password-book/{id} 删除指定密码本
+  static Future<void> deletePasswordBook(String id) async {
+    try {
+      final response = await _dio.delete('/api/password-book/$id');
+
+      if (response.statusCode == 401) {
+        throw Exception('认证已过期，请重新登录 (401)');
+      }
+      // ABP 规范：物理/软删除成功，服务端通常会返回 200 (OK) 或 204 (No Content)
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('删除失败，服务器状态码: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('网络请求发生异常: ${e.message}');
+    }
+  }
+
 }
