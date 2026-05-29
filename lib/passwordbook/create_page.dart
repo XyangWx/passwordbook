@@ -110,7 +110,7 @@ class _CreatePasswordBookPageState extends State<CreatePasswordBookPage> {
                 items: AllowedType.values.map((type) {
                   return DropdownMenuItem(
                     value: type,
-                    child: Text(type == AllowedType.numericOnly ? '纯数字密码' : '通用复杂密码'),
+                    child: Text(type == AllowedType.numericOnly ? 'Number Only' : 'General'),
                   );
                 }).toList(),
                 onChanged: (v) {
