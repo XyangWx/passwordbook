@@ -158,6 +158,18 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (entry.isDeleted) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: const Text('⚠️ 已删除', style: TextStyle(color: Colors.red, fontSize: 12)),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       if (entry.remark != null && entry.remark!.isNotEmpty) ...[
                         Text('备注描述: ${entry.remark}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                         const SizedBox(height: 12),
