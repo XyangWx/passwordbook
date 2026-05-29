@@ -407,7 +407,18 @@ class _HomePageState extends State<HomePage> {
               child: ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.lock_outline)),
                 title: Text(book.name),
-                subtitle: Text(book.description ?? '暂无描述'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(book.description ?? '暂无描述'),
+                    const SizedBox(height: 2),
+                    Text(
+                      book.allowedType.label,
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
                 trailing: const Icon(Icons.chevron_right),
                 // 🟢 核心修改：点击密码本条目时，弹出包含两个菜单项的底部面板
                 onTap: () {
