@@ -159,6 +159,22 @@ class PasswordBookApiClient {
     }
   }
 
+  /// 🟢 DELETE /api/password-book/{passwordBookId}/entries/{entryId}?queryKind=0 删除密码项（软删除）
+  static Future<void> deletePasswordEntry(String passwordBookId, String entryId) async {
+    try {
+      final response = await _dio.delete('/api/password-book/$passwordBookId/entries/$entryId?queryKind=0');
+
+      if (response.statusCode == 401) {
+        throw Exception('认证已过期，请重新登录 (401)');
+      }
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('删除密码项失败，服务器状态码: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('网络请求发生异常: ${e.message}');
+    }
+  }
+
   /// 🟢 POST /api/password-book/{passwordBookId}/entries/{passwordEntryId}/restore 恢复已删除的密码项
   static Future<void> restorePasswordEntry(String passwordBookId, String passwordEntryId) async {
     try {

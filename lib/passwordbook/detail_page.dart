@@ -168,7 +168,7 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
                           ),
                           child: const Text('⚠️ 已删除', style: TextStyle(color: Colors.red, fontSize: 12)),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         TextButton(
                           onPressed: _isLoading ? null : () async {
                             try {
@@ -198,6 +198,41 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
                               Icon(Icons.restore, size: 16, color: Colors.green),
                               SizedBox(width: 4),
                               Text('恢复', style: TextStyle(fontSize: 13, color: Colors.green)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (!entry.isDeleted) ...[
+                        TextButton(
+                          onPressed: _isLoading ? null : () async {
+                            try {
+                              await PasswordBookApiClient.deletePasswordEntry(widget.bookId, entry.id);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('密码项已删除')),
+                                );
+                                _fetchDetail();
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('删除失败: $e')),
+                                );
+                              }
+                            }
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.delete_outline, size: 16, color: Colors.orange),
+                              SizedBox(width: 4),
+                              Text('删除', style: TextStyle(fontSize: 13, color: Colors.orange)),
                             ],
                           ),
                         ),
