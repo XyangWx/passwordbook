@@ -215,6 +215,33 @@ class NewPasswordBookRequest {
 
 typedef ViewPasswordBookResponse = PasswordBook;
 
+/// 🟢 获取随机密码请求实体模型
+class GetRandomPasswordRequest {
+  final String passwordBookId;
+  final int minLength;
+  final int maxLength;
+  final int passwordType;
+  final int weakLevel;
+
+  GetRandomPasswordRequest({
+    required this.passwordBookId,
+    this.minLength = 8,
+    this.maxLength = 20,
+    this.passwordType = 0,
+    this.weakLevel = 0,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'passwordBookId': passwordBookId,
+      'minLength': minLength,
+      'maxLength': maxLength,
+      'passwordType': passwordType,
+      'weakLevel': weakLevel,
+    };
+  }
+}
+
 /// 🟢 新建密码条目请求实体模型
 class CreatePasswordRequest {
   final String title;
