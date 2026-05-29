@@ -159,47 +159,51 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (entry.isDeleted) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.red.shade200),
-                          ),
-                          child: const Text('⚠️ 已删除', style: TextStyle(color: Colors.red, fontSize: 12)),
-                        ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: _isLoading ? null : () async {
-                            try {
-                              await PasswordBookApiClient.restorePasswordEntry(widget.bookId, entry.id);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('密码项已恢复')),
-                                );
-                                _fetchDetail();
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('恢复失败: $e')),
-                                );
-                              }
-                            }
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.restore, size: 16, color: Colors.green),
-                              SizedBox(width: 4),
-                              Text('恢复', style: TextStyle(fontSize: 13, color: Colors.green)),
-                            ],
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: const Text('⚠️ 已删除', style: TextStyle(color: Colors.red, fontSize: 12)),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: _isLoading ? null : () async {
+                                try {
+                                  await PasswordBookApiClient.restorePasswordEntry(widget.bookId, entry.id);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('密码项已恢复')),
+                                    );
+                                    _fetchDetail();
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('恢复失败: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.restore, size: 16, color: Colors.green),
+                                  SizedBox(width: 4),
+                                  Text('恢复', style: TextStyle(fontSize: 13, color: Colors.green)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
                       ],
