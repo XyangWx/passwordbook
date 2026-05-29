@@ -65,6 +65,20 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
     );
   }
 
+  /// 🟢 点击"新增密码项"按钮，弹出创建对话框
+  void _showCreatePasswordEntryDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _CreatePasswordEntryDialog(
+        bookId: widget.bookId,
+        onSuccess: () {
+          _fetchDetail();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -175,14 +189,211 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton.icon(
-            onPressed: _isLoading ? null : () {
-              // TODO: 触发新建密码条目的表单
-            },
+            onPressed: _isLoading ? null : _showCreatePasswordEntryDialog,
             icon: const Icon(Icons.add),
             label: const Text('在该密码本下新增密码项', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 🟢 创建密码条目对话框
+class _CreatePasswordEntryDialog extends StatefulWidget {
+  final String bookId;
+  final VoidCallback onSuccess;
+
+  const _CreatePasswordEntryDialog({required this.bookId, required this.onSuccess});
+
+  @override
+  State<_CreatePasswordEntryDialog> createState() => _CreatePasswordEntryDialogState();
+}
+
+class _CreatePasswordEntryDialogState extends State<_CreatePasswordEntryDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _remarkController = TextEditingController();
+
+  bool _hasUsername = true;
+  int _passwordType = 0;
+  WeakLevel _weakLevel = WeakLevel.strong;
+  bool _isLoading = false;
+  bool _isGenerating = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _remarkController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generatePassword() async {
+    setState(() => _isGenerating = true);
+    try {
+      final request = GetRandomPasswordRequest(
+        passwordBookId: widget.bookId,
+        passwordType: _passwordType == 0 ? AllowedType.numericOnly : AllowedType.general,
+        weakLevel: _weakLevel,
+      );
+      final response = await PasswordBookApiClient.generateRandomPassword(request);
+      if (mounted) {
+        setState(() {
+          _passwordController.text = response.password;
+          _isGenerating = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('生成密码失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleCreate() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final request = CreatePasswordRequest(
+        title: _titleController.text.trim(),
+        hasUsername: _hasUsername,
+        username: _hasUsername ? _usernameController.text.trim() : null,
+        passwordType: _passwordType,
+        weakLevel: _weakLevel,
+        password: _passwordController.text,
+        remark: _remarkController.text.trim().isEmpty ? null : _remarkController.text.trim(),
+      );
+
+      await PasswordBookApiClient.createPasswordEntry(widget.bookId, request);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('密码项创建成功')),
+        );
+        widget.onSuccess();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('创建失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('新增密码项'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: '标题 *', hintText: '如：QQ邮箱'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '标题为必填项';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                title: const Text('需要用户名/账号'),
+                value: _hasUsername,
+                onChanged: (value) => setState(() => _hasUsername = value),
+                contentPadding: EdgeInsets.zero,
+              ),
+              if (_hasUsername) ...[
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(labelText: '用户名/账号', hintText: '请输入用户名'),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(labelText: '密码 *', hintText: '请输入密码'),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '密码为必填项';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _isGenerating ? null : _generatePassword,
+                    icon: _isGenerating
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.refresh),
+                    tooltip: '生成随机密码',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text('密码类型', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              DropdownButtonFormField<int>(
+                value: _passwordType,
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('纯数字')),
+                  DropdownMenuItem(value: 1, child: Text('通用复杂')),
+                ],
+                onChanged: (value) => setState(() => _passwordType = value!),
+              ),
+              const SizedBox(height: 12),
+              const Text('密码强度', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              DropdownButtonFormField<WeakLevel>(
+                value: _weakLevel,
+                items: WeakLevel.values.map((e) => DropdownMenuItem(value: e, child: Text(e.label))).toList(),
+                onChanged: (value) => setState(() => _weakLevel = value!),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _remarkController,
+                decoration: const InputDecoration(labelText: '备注', hintText: '可选'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _handleCreate,
+          child: _isLoading
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('创建'),
+        ),
+      ],
     );
   }
 }
