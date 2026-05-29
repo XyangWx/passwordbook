@@ -228,7 +228,7 @@ class GetRandomPasswordRequest {
     this.minLength = 8,
     this.maxLength = 20,
     this.passwordType = AllowedType.general,
-    this.weakLevel = WeakLevel.medium,
+    this.weakLevel = WeakLevel.strong,
   });
 
   Map<String, dynamic> toJson() {
