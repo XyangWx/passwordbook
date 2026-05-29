@@ -242,6 +242,19 @@ class GetRandomPasswordRequest {
   }
 }
 
+/// 🟢 获取随机密码响应实体模型
+class GetRandomPasswordResponse {
+  final String password;
+
+  GetRandomPasswordResponse({required this.password});
+
+  factory GetRandomPasswordResponse.fromJson(Map<String, dynamic> json) {
+    return GetRandomPasswordResponse(
+      password: json['password'] ?? '',
+    );
+  }
+}
+
 /// 🟢 新建密码条目请求实体模型
 class CreatePasswordRequest {
   final String title;
