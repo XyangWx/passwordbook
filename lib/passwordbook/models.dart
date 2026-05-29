@@ -256,12 +256,13 @@ class GetRandomPasswordResponse {
 }
 
 /// 🟢 新建密码条目请求实体模型
+/// 🟢 升级强类型后的新建密码条目请求实体模型
 class CreatePasswordRequest {
   final String title;
   final bool hasUsername;
   final String? username;
   final int passwordType;
-  final WeakLevel weakLevel;
+  final WeakLevel weakLevel; // 🟢 升级：改用你已有的 WeakLevel 强类型枚举
   final String password;
   final String? remark;
 
@@ -270,19 +271,19 @@ class CreatePasswordRequest {
     this.hasUsername = true,
     this.username,
     this.passwordType = 0,
-    this.weakLevel = WeakLevel.strong,
+    this.weakLevel = WeakLevel.veryStrong, // 默认给个中等安全级别
     required this.password,
     this.remark,
   });
 
-  /// 🟢 将对象转为标准的 Map 字典，供已注入 OIDC 拦截器的 Dio 客户端发起 POST 提交
+  /// 将对象转为标准的 Map 字典，供 Dio 序列化提交
   Map<String, dynamic> toJson() {
     return {
       'title': title,
       'hasUsername': hasUsername,
       'username': username,
       'passwordType': passwordType,
-      'weakLevel': weakLevel,
+      'weakLevel': weakLevel.value, // 🟢 核心修正：自动提取绑定的 int 值 (0-4)，彻底杜绝序列化崩溃！
       'password': password,
       'remark': remark,
     };
@@ -290,6 +291,7 @@ class CreatePasswordRequest {
 
   @override
   String toString() {
-    return 'CreatePasswordRequest(title: $title, hasUsername: $hasUsername, username: $username)';
+    return 'CreatePasswordRequest(title: $title, weakLevel: ${weakLevel.label})';
   }
 }
+
