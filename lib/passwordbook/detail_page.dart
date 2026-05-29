@@ -21,6 +21,18 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
   PasswordBook? _detailData;
   bool _isLoading = true;
   String? _error;
+  // 🟢 1. 在类头部声明一个 Map 存储器（用来记录哪个 entryId 的眼睛被点开了）
+  final Map<String, bool> _obscureMap = {};
+
+  // 🟢 2. 辅助方法：获取当前卡片的显隐状态（默认隐藏为 true）
+  bool _getObscureStatus(String entryId) {
+    return _obscureMap[entryId] ?? true;
+  }
+
+  // 🟢 3. 辅助方法：切换状态
+  void _toggleObscureStatus(String entryId) {
+    _obscureMap[entryId] = !(_obscureMap[entryId] ?? true);
+  }
 
   @override
   void initState() {
@@ -150,29 +162,73 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
                         Text('备注描述: ${entry.remark}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                         const SizedBox(height: 12),
                       ],
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
+
+                      // 🟢 彻底修复横向溢出（RenderFlex overflowed）的版本
+                      StatefulBuilder(
+                        builder: (BuildContext context, StateSetter setCardState) {
+                          final isObscured = _getObscureStatus(entry.id);
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('当前密码: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                              // 对当前密码字段进行隐藏混淆展示，或直接明文显示
-                              Text(
-                                entry.currentPassword ?? '******',
-                                style: const TextStyle(fontFamily: 'monospace', color: Colors.deepPurple, fontWeight: FontWeight.bold),
+                              // 🟢 1. 核心修正：用 Expanded 把密码区包裹起来，强行限制其最大宽度为屏幕剩余空间
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Text('当前密码: ', style: TextStyle(fontWeight: FontWeight.bold)),
+
+                                    // 🟢 2. 核心修正：用 Flexible 包裹密码文本，使其在变成明文过长时自动缩进或截断
+                                    Flexible(
+                                      child: Text(
+                                        isObscured
+                                            ? '••••••'
+                                            : (entry.currentPassword ?? '暂无密码'),
+                                        style: const TextStyle(
+                                          fontFamily: 'monospace',
+                                          color: Colors.deepPurple,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                        overflow: TextOverflow.ellipsis, // 🟢 如果明文实在太长，末尾自动显示“...”防止挤爆布局
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+
+                                    // 小眼睛按钮
+                                    if (entry.currentPassword != null)
+                                      IconButton(
+                                        padding: EdgeInsets.zero, // 紧凑排版
+                                        constraints: const BoxConstraints(), // 移除默认大边距
+                                        icon: Icon(
+                                          isObscured ? Icons.visibility_off : Icons.visibility,
+                                          size: 18,
+                                          color: Colors.grey,
+                                        ),
+                                        onPressed: () {
+                                          setCardState(() {
+                                            _toggleObscureStatus(entry.id);
+                                          });
+                                        },
+                                        tooltip: isObscured ? '显示密码' : '隐藏密码',
+                                      ),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 12), // 留出安全的横向间距
+
+                              // 右侧复制按钮（现在有了左侧 Expanded 撑开，它会被稳稳固定在屏幕右侧）
+                              if (entry.currentPassword != null)
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  ),
+                                  onPressed: () => _copyToClipboard(entry.currentPassword!, entry.title),
+                                  icon: const Icon(Icons.copy, size: 16),
+                                  label: const Text('复制'),
+                                ),
                             ],
-                          ),
-                          if (entry.currentPassword != null)
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              ),
-                              onPressed: () => _copyToClipboard(entry.currentPassword!, entry.title),
-                              icon: const Icon(Icons.copy, size: 16),
-                              label: const Text('复制'),
-                            ),
-                        ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -223,6 +279,9 @@ class _CreatePasswordEntryDialogState extends State<_CreatePasswordEntryDialog> 
   bool _isLoading = false;
   bool _isGenerating = false;
 
+  // 🟢 新增控制变量：控制密码文本是否处于模糊隐藏状态（默认隐藏）
+  bool _obscurePassword = true;
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -245,6 +304,8 @@ class _CreatePasswordEntryDialogState extends State<_CreatePasswordEntryDialog> 
         setState(() {
           _passwordController.text = response.password;
           _isGenerating = false;
+          // 💡 联动优化：生成新密码后，自动切换为明文显示，方便用户立刻看到生成的密码
+          _obscurePassword = false;
         });
       }
     } catch (e) {
@@ -332,11 +393,29 @@ class _CreatePasswordEntryDialogState extends State<_CreatePasswordEntryDialog> 
               ],
               const SizedBox(height: 12),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // 1. 🟢 升级后的密码专用输入框容器
                   Expanded(
                     child: TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(labelText: '密码 *', hintText: '请输入密码'),
+                      obscureText: _obscurePassword, // 🟢 动态绑定明暗文隐藏状态
+                      keyboardType: TextInputType.visiblePassword, // 优化系统键盘适配
+                      decoration: InputDecoration(
+                        labelText: '密码 *',
+                        hintText: '请输入密码',
+                        // 🟢 在输入框内部右侧添加“小眼睛”点击切换按钮
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setState(() => _obscurePassword = !_obscurePassword);
+                          },
+                          tooltip: _obscurePassword ? '显示明文' : '隐藏密码',
+                        ),
+                      ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return '密码为必填项';
@@ -345,12 +424,13 @@ class _CreatePasswordEntryDialogState extends State<_CreatePasswordEntryDialog> 
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
+                  // 2. 刷新生成随机密码的独立按钮
                   IconButton(
                     onPressed: _isGenerating ? null : _generatePassword,
                     icon: _isGenerating
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.refresh),
+                        : const Icon(Icons.refresh, color: Colors.deepPurple),
                     tooltip: '生成随机密码',
                   ),
                 ],
@@ -397,3 +477,4 @@ class _CreatePasswordEntryDialogState extends State<_CreatePasswordEntryDialog> 
     );
   }
 }
+
