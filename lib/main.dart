@@ -414,7 +414,7 @@ class _HomePageState extends State<HomePage> {
                     Text(book.description ?? '暂无描述'),
                     const SizedBox(height: 2),
                     Text(
-                      book.allowedType.label,
+                      book.allowedType == 0 ? 'Number Only' : 'General',
                       style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                     ),
                   ],
