@@ -119,4 +119,24 @@ class PasswordBookApiClient {
     }
   }
 
+  /// POST /api/password-book/{id}/entry 在指定密码本下创建新密码项
+  static Future<void> createPasswordEntry(String passwordBookId, CreatePasswordRequest request) async {
+    try {
+      final response = await _dio.post(
+        '/api/password-book/$passwordBookId/entries', // 💡 请根据后端真实路由微调此路径
+        data: request.toJson(),
+      );
+
+      if (response.statusCode == 401) {
+        throw Exception('认证已过期，请重新登录 (401)');
+      }
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('创建密码项失败，服务器状态码: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('网络请求发生异常: ${e.message}');
+    }
+  }
+
+
 }

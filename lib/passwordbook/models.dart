@@ -215,3 +215,41 @@ class NewPasswordBookRequest {
 
 typedef ViewPasswordBookResponse = PasswordBook;
 
+/// 🟢 新建密码条目请求实体模型
+class CreatePasswordRequest {
+  final String title;
+  final bool hasUsername;
+  final String? username;
+  final int passwordType;
+  final WeakLevel weakLevel;
+  final String password;
+  final String? remark;
+
+  CreatePasswordRequest({
+    required this.title,
+    this.hasUsername = true,
+    this.username,
+    this.passwordType = 0,
+    this.weakLevel = WeakLevel.strong,
+    required this.password,
+    this.remark,
+  });
+
+  /// 🟢 将对象转为标准的 Map 字典，供已注入 OIDC 拦截器的 Dio 客户端发起 POST 提交
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'hasUsername': hasUsername,
+      'username': username,
+      'passwordType': passwordType,
+      'weakLevel': weakLevel,
+      'password': password,
+      'remark': remark,
+    };
+  }
+
+  @override
+  String toString() {
+    return 'CreatePasswordRequest(title: $title, hasUsername: $hasUsername, username: $username)';
+  }
+}
