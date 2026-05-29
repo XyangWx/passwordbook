@@ -86,7 +86,7 @@ class PasswordBookApiClient {
   /// 🟢 GET /api/password-book/{id} 获取单个密码本及名下密码项详情
   static Future<ViewPasswordBookResponse> viewPasswordBook(String id) async {
     try {
-      final response = await _dio.get('/api/password-book/$id');
+      final response = await _dio.get('/api/password-book/$id/with-entries');
 
       if (response.statusCode == 401) {
         throw Exception('认证已过期，请重新登录 (401)');
