@@ -220,15 +220,15 @@ class GetRandomPasswordRequest {
   final String passwordBookId;
   final int minLength;
   final int maxLength;
-  final int passwordType;
-  final int weakLevel;
+  final AllowedType passwordType;
+  final WeakLevel weakLevel;
 
   GetRandomPasswordRequest({
     required this.passwordBookId,
     this.minLength = 8,
     this.maxLength = 20,
-    this.passwordType = 0,
-    this.weakLevel = 0,
+    this.passwordType = AllowedType.general,
+    this.weakLevel = WeakLevel.medium,
   });
 
   Map<String, dynamic> toJson() {
@@ -236,8 +236,8 @@ class GetRandomPasswordRequest {
       'passwordBookId': passwordBookId,
       'minLength': minLength,
       'maxLength': maxLength,
-      'passwordType': passwordType,
-      'weakLevel': weakLevel,
+      'passwordType': passwordType.value,
+      'weakLevel': weakLevel.value,
     };
   }
 }
