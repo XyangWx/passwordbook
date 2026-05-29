@@ -138,5 +138,26 @@ class PasswordBookApiClient {
     }
   }
 
+  /// 🟢 POST /api/password-book/generate-random-password-from-weak-level 生成随机密码
+  static Future<GetRandomPasswordResponse> generateRandomPassword(GetRandomPasswordRequest request) async {
+    try {
+      final response = await _dio.post(
+        '/api/password-book/generate-random-password-from-weak-level',
+        data: request.toJson(),
+      );
+
+      if (response.statusCode == 401) {
+        throw Exception('认证已过期，请重新登录 (401)');
+      }
+      if (response.statusCode != 200) {
+        throw Exception('生成随机密码失败，服务器状态码: ${response.statusCode}');
+      }
+
+      return GetRandomPasswordResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('网络请求发生异常: ${e.message}');
+    }
+  }
+
 
 }
