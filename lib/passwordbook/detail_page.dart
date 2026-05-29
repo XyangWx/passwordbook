@@ -168,7 +168,7 @@ class _PasswordBookDetailPageState extends State<PasswordBookDetailPage> {
                           ),
                           child: const Text('⚠️ 已删除', style: TextStyle(color: Colors.red, fontSize: 12)),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 8),
                         TextButton(
                           onPressed: _isLoading ? null : () async {
                             try {
