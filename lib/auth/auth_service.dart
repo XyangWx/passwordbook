@@ -24,7 +24,7 @@ class AuthService {
       redirectUri: Uri.parse('com.mksword.passwordbook://callback'),
       postLogoutRedirectUri: Uri.parse('com.mksword.passwordbook://logout-callback'),
       options: platformOptions,
-      scope: const ['openid', 'profile', 'email', 'XYPortal'], // 完美对齐复数 scopes
+      scope: const ['openid', 'profile', 'email', 'offline_access', 'XYPortal'], // 完美对齐复数 scopes；offline_access 用于获取 refresh_token 实现静默刷新
     );
 
     _userManager = OidcUserManager.lazy(
