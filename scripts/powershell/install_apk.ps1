@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     将指定的 APK 通过 adb 安装到当前连接的 Android 设备/虚拟机。
 
