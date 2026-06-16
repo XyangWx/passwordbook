@@ -1,4 +1,26 @@
 #!/bin/bash
+#
+# 统一的 Flutter Android 打包脚本（bash 版）。
+#
+# 自动清理构建缓存并按模式编译 Debug / Release APK。Release 模式会通过
+# --dart-define 注入生产环境配置常量（AUTHSERVER / API_URI），由
+# lib/config/env_config.dart 在运行时读取。Debug 模式不注入常量，
+# 退回到代码内硬编码的默认测试环境地址。
+#
+# 用法:
+#   ./scripts/bash/publish.sh debug
+#       编译测试包，使用代码默认的测试环境配置
+#
+#   ./scripts/bash/publish.sh release <AUTH_SERVER_URL> <API_URI_URL>
+#       编译正式包，注入生产环境认证服务器与 API 地址
+#       例: ./scripts/bash/publish.sh release https://auth.prod.com https://api.prod.com
+#
+# 参数:
+#   $1  构建模式：debug | release
+#   $2  [release 必填] OIDC 认证服务器地址
+#   $3  [release 必填] 后端 API 地址
+#
+# 注意: release 模式下若漏填 $2 或 $3，脚本会直接报错退出，防止打出残缺包。
 
 # 🟢 统一的强力清理（对齐 3.45.0 构建缓存清理规范）
 echo "🧹 正在清理旧的编译缓存..."

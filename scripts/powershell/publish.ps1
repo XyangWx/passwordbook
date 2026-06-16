@@ -1,4 +1,34 @@
-﻿# 统一清理 Flutter 构建缓存与依赖依赖
+﻿<#
+.SYNOPSIS
+    统一的 Flutter Android 打包脚本（PowerShell 版）。
+
+.DESCRIPTION
+    自动清理构建缓存并按模式编译 Debug / Release APK。Release 模式会通过
+    --dart-define 注入生产环境配置常量（AUTHSERVER / API_URI），由
+    lib/config/env_config.dart 在运行时读取。Debug 模式不注入常量，
+    退回到代码内硬编码的默认测试环境地址。
+
+.PARAMETER buildMode
+    构建模式。取值：
+        debug   - 编译测试包，不注入 --dart-define
+        release - 编译正式包，必须同时提供后两个 URL 参数
+
+.PARAMETER authServer
+    [仅 release 模式必填] OIDC 认证服务器地址，例：https://auth.prod.com
+
+.PARAMETER apiUri
+    [仅 release 模式必填] 后端 API 地址，例：https://api.prod.com
+
+.EXAMPLE
+    PS> .\scripts\powershell\publish.ps1 debug
+    （编译测试包，使用代码默认的测试环境配置）
+
+.EXAMPLE
+    PS> .\scripts\powershell\publish.ps1 release https://auth.prod.com https://api.prod.com
+    （编译正式包，注入生产环境认证服务器与 API 地址）
+#>
+
+# 统一清理 Flutter 构建缓存与依赖
 Write-Host "🧹 正在清理旧的编译缓存并获取依赖包..." -ForegroundColor Cyan
 flutter clean
 flutter pub get
