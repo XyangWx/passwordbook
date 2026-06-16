@@ -15,6 +15,8 @@
 .NOTES
     如需更换 Android SDK 路径，请修改脚本顶部的 $androidSdkPath 变量。
     请确保 SDK 中已存在 platform-tools/adb.exe（Windows）或 adb（Linux/macOS）。
+    脚本会自动剔除 APK 路径中的 Unicode 双向控制字符（U+200E/F、U+202A–E、
+    U+2066–9），防止从资源管理器"复制路径"按钮粘入的不可见字符导致路径失效。
 #>
 
 # ============================================================
@@ -53,6 +55,14 @@ if ([string]::IsNullOrEmpty($apkPath)) {
     Write-Host "💡 规范用法: .\install_apk.ps1 <APK_PATH>" -ForegroundColor Yellow
     Write-Host "  例: .\install_apk.ps1 D:\build\app-release.apk" -ForegroundColor Yellow
     exit 1
+}
+
+# 3.1 净化路径：剔除 Unicode 双向控制字符（资源管理器"复制路径"会塞这些）
+#     范围: LRM/RLM (U+200E/F), LRE/RLE/PDF/LRO/RLO (U+202A–E), LRI/RLI/FSI/PDI (U+2066–9)
+$originalApkPath = $apkPath
+$apkPath = $apkPath -replace '[\u200E\u200F\u202A-\u202E\u2066-\u2069]', ''
+if ($apkPath -ne $originalApkPath) {
+    Write-Host "🧹 已自动剔除路径中的 Unicode 双向控制字符" -ForegroundColor Yellow
 }
 if (-not (Test-Path -LiteralPath $apkPath)) {
     Write-Error "❌ 错误: APK 路径不存在: $apkPath"
